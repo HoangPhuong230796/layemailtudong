@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Xác nhận phản hồi</title>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+    <script>
+        const msalConfig = {
+            auth: {
+                clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8",  // Thay bằng Client ID từ Azure Entra ID
+                authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44",  // Thay bằng Tenant ID
+                redirectUri: window.location.href
+            }
+        };
+
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+        async function getUserEmail() {
+            try {
+                // Đăng nhập SSO tự động
+                const account = msalInstance.getAllAccounts()[0];
+                if (!account) {
+                    await msalInstance.loginPopup({ scopes: ["User.Read"] });
+                }
+
+                // Lấy token để gọi Graph API
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: ["User.Read"]
+                });
+
+                // Gọi Microsoft Graph API để lấy email
+                const response = await fetch("https://graph.microsoft.com/v1.0/me", {
+                    headers: { "Authorization": `Bearer ${tokenResponse.accessToken}` }
+                });
+
+                const data = await response.json();
+                const userEmail = data.mail;
+
+                // Lấy response từ URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const responseValue = urlParams.get("response");
+
+                // Chuyển hướng đến Flow 2
+                window.location.href = `https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0?response=${responseValue}&email=${userEmail}`;
+            } catch (error) {
+                console.error("Lỗi lấy email:", error);
+            }
+        }
+
+        window.onload = getUserEmail;
+    </script>
+</head>
+<body>
+    <p>Vui lòng đợi, hệ thống đang xử lý...</p>
+</body>
+</html>
