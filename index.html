@@ -5,15 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lấy Email Tự Động</title>
     <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: #f4f7f6;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+        }
+        h2 {
+            color: #333;
+        }
+        .loading {
+            margin: 20px 0;
+            font-size: 16px;
+            color: #666;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: red;
+            margin-top: 15px;
+        }
+    </style>
 </head>
 <body>
-    <h2>Đang xử lý phản hồi...</h2>
+
+    <div class="container">
+        <h2>Đang xử lý...</h2>
+        <div class="loader"></div>
+        <p class="loading">Vui lòng đợi trong giây lát...</p>
+        <p id="status"></p>
+    </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const response = decodeURIComponent(params.get("response") || "");
 
-        // Cấu hình MSAL
         const msalConfig = {
             auth: {
                 clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8",
@@ -26,20 +76,14 @@
 
         async function getUserEmail() {
             try {
-                // Kiểm tra nếu có phản hồi từ Microsoft sau khi đăng nhập
                 const response = await msalInstance.handleRedirectPromise();
-
                 let account = msalInstance.getAllAccounts()[0];
 
                 if (!account) {
-                    // Nếu chưa đăng nhập, thực hiện loginRedirect()
-                    await msalInstance.loginRedirect({
-                        scopes: ["User.Read"]
-                    });
+                    await msalInstance.loginRedirect({ scopes: ["User.Read"] });
                     return;
                 }
 
-                // Lấy Access Token
                 const tokenResponse = await msalInstance.acquireTokenSilent({
                     scopes: ["User.Read"],
                     account: account
@@ -47,7 +91,6 @@
 
                 const accessToken = tokenResponse.accessToken;
 
-                // Gọi Microsoft Graph API để lấy email
                 const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
                     headers: { "Authorization": `Bearer ${accessToken}` }
                 });
@@ -55,9 +98,16 @@
                 const userData = await userResponse.json();
                 const userEmail = userData.mail || userData.userPrincipalName;
 
-                // Gửi dữ liệu đến Flow 2
+                document.querySelector("h2").innerText = "Thành công!";
+                document.querySelector(".loading").innerText = `Email: ${userEmail}`;
+                document.querySelector(".loader").style.display = "none";
+
                 sendToFlow2(userEmail, response);
             } catch (error) {
+                document.querySelector("h2").innerText = "Lỗi!";
+                document.querySelector(".loading").innerText = "";
+                document.querySelector(".loader").style.display = "none";
+                document.getElementById("status").innerHTML = `<p class="error">Không thể lấy email. Vui lòng thử lại.</p>`;
                 console.error("Lỗi lấy email:", error);
             }
         }
@@ -65,21 +115,22 @@
         function sendToFlow2(email, response) {
             fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email: email, response: response })
             })
             .then(async res => {
                 const data = await res.text();
                 console.log("Response from Flow 2:", data);
-                document.body.innerHTML = "<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>";
+                document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
             })
-            .catch(error => console.error("Lỗi gửi dữ liệu:", error));
+            .catch(error => {
+                console.error("Lỗi gửi dữ liệu:", error);
+                document.getElementById("status").innerHTML = `<p class="error">Lỗi gửi dữ liệu!</p>`;
+            });
         }
 
-        // Gọi ngay khi trang tải để kiểm tra login
         getUserEmail();
     </script>
+
 </body>
 </html>
