@@ -62,6 +62,13 @@
         <div class="loader"></div>
         <p class="loading">Vui lòng đợi trong giây lát...</p>
         <p id="status"></p>
+        <!-- Khu vực nhập lý do -->
+        <div id="reasonSection" class="hidden">
+            <textarea id="reasonInput" placeholder="Nhập lý do không thống nhất..."></textarea>
+            <button class="submit-btn" onclick="submitReason()">Gửi</button>
+    </div>
+         <!-- Nút Không thống nhất -->
+        <button id="rejectBtn" class="reject-btn hidden" onclick="showReasonBox()">Không thống nhất</button>
     </div>
 
     <script>
@@ -142,16 +149,27 @@ console.log("response:", response);
             }
         }
 
+        function showReasonBox() {
+            document.getElementById("reasonSection").classList.remove("hidden");
+        }
+
+        function submitReason() {
+            let reason = document.getElementById("reasonInput").value.trim();
+            if (reason === "") {
+                alert("Vui lòng nhập lý do!");
+                return;
+            }
+            sendToFlow2(userEmail, "reject", reason);
+        }
+
         function sendToFlow2(email) {
             fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email,response:response,id_file:id_file })
+                body: JSON.stringify({ email: email,response:response,id_file:id_file,reason: reason})
             })
-            .then(async res => {
-                const data = await res.text();
-                console.log("Response from Flow 2:", data);
-            })
+            .then(res => res.text())
+            .then(data => console.log("Response from Flow 2:", data))
             .catch(error => console.error("Lỗi gửi dữ liệu:", error));
         }
 
