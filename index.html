@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
+    <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lấy Email Tự Động</title>
@@ -20,15 +21,14 @@
                 redirectUri: "https://hoangphuong230796.github.io/layemailtudong/"
             }
         };
-        <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
+        
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
-        msalInstance.initialize();
 
 
         async function getUserEmail() {
             try {
-                const loginResponse = await msalInstance.loginPopup({
+                const loginResponse = await msalInstance.acquireTokenPopup({
                     scopes: ["User.Read"]
                 });
 
