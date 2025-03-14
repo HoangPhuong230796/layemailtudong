@@ -26,14 +26,20 @@
 
         async function getUserEmail() {
             try {
-                // Đăng nhập để lấy Access Token
-                const loginResponse = await msalInstance.loginPopup({
-                    scopes: ["User.Read"]
-                });
+                // Kiểm tra nếu có phản hồi từ Microsoft sau khi đăng nhập
+                const response = await msalInstance.handleRedirectPromise();
 
-                const account = loginResponse.account;
-                if (!account) throw new Error("Không tìm thấy tài khoản!");
+                let account = msalInstance.getAllAccounts()[0];
 
+                if (!account) {
+                    // Nếu chưa đăng nhập, thực hiện loginRedirect()
+                    await msalInstance.loginRedirect({
+                        scopes: ["User.Read"]
+                    });
+                    return;
+                }
+
+                // Lấy Access Token
                 const tokenResponse = await msalInstance.acquireTokenSilent({
                     scopes: ["User.Read"],
                     account: account
@@ -41,7 +47,7 @@
 
                 const accessToken = tokenResponse.accessToken;
 
-                // Gọi Microsoft Graph API để lấy email người dùng
+                // Gọi Microsoft Graph API để lấy email
                 const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
                     headers: { "Authorization": `Bearer ${accessToken}` }
                 });
@@ -72,6 +78,7 @@
             .catch(error => console.error("Lỗi gửi dữ liệu:", error));
         }
 
+        // Gọi ngay khi trang tải để kiểm tra login
         getUserEmail();
     </script>
 </body>
