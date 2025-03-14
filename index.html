@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lấy Email Tự Động</title>
+    <title>Kiểm tra quyền truy cập</title>
     <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
     <style>
         body {
@@ -47,22 +47,25 @@
         }
         .error {
             color: red;
-            margin-top: 15px;
+            font-weight: bold;
+        }
+        .success {
+            color: green;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h2>Đang xử lý...</h2>
+        <h2>Đang xác thực...</h2>
         <div class="loader"></div>
         <p class="loading">Vui lòng đợi trong giây lát...</p>
         <p id="status"></p>
     </div>
 
     <script>
-        const params = new URLSearchParams(window.location.search);
-        const response = decodeURIComponent(params.get("response") || "");
+        const ALLOWED_EMAIL = "trunglv@phumytpc.genco3.com"; // Email được phép truy cập
 
         const msalConfig = {
             auth: {
@@ -98,11 +101,22 @@
                 const userData = await userResponse.json();
                 const userEmail = userData.mail || userData.userPrincipalName;
 
+                // Kiểm tra quyền truy cập
+                if (userEmail.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+                    document.querySelector("h2").innerText = "Truy cập bị từ chối!";
+                    document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
+                    document.querySelector(".loader").style.display = "none";
+                    document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
+                    return;
+                }
+
+                // Nếu email hợp lệ
                 document.querySelector("h2").innerText = "Thành công!";
                 document.querySelector(".loading").innerText = `Email: ${userEmail}`;
                 document.querySelector(".loader").style.display = "none";
+                document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
 
-                sendToFlow2(userEmail, response);
+                sendToFlow2(userEmail);
             } catch (error) {
                 document.querySelector("h2").innerText = "Lỗi!";
                 document.querySelector(".loading").innerText = "";
@@ -112,21 +126,17 @@
             }
         }
 
-        function sendToFlow2(email, response) {
+        function sendToFlow2(email) {
             fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email, response: response })
+                body: JSON.stringify({ email: email })
             })
             .then(async res => {
                 const data = await res.text();
                 console.log("Response from Flow 2:", data);
-                document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
             })
-            .catch(error => {
-                console.error("Lỗi gửi dữ liệu:", error);
-                document.getElementById("status").innerHTML = `<p class="error">Lỗi gửi dữ liệu!</p>`;
-            });
+            .catch(error => console.error("Lỗi gửi dữ liệu:", error));
         }
 
         getUserEmail();
