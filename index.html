@@ -17,11 +17,14 @@
             auth: {
                 clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8", // Thay bằng Client ID của bạn
                 authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44", // Thay bằng Tenant ID của công ty bạn
-                redirectUri: window.location.href
+                redirectUri: "https://hoangphuong230796.github.io/layemailtudong/"
             }
         };
+        <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
+        msalInstance.initialize();
+
 
         async function getUserEmail() {
             try {
@@ -33,7 +36,7 @@
 
                 // Gọi Microsoft Graph API để lấy email người dùng
                 const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-                    headers: { Authorization: `Bearer ${accessToken}` }
+                    headers: { "Authorization": "Bearer " + accessToken }
                 });
 
                 const userData = await userResponse.json();
@@ -54,7 +57,11 @@
                 },
                 body: JSON.stringify({ email: email, response: response })
             })
-            .then(res => res.json())
+            .then(async res => {
+    const data = await res.text(); // Kiểm tra phản hồi
+    console.log("Response from Flow 2:", data);
+    document.body.innerHTML = "<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>";
+})
             .then(data => {
                 document.body.innerHTML = `<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>`;
             })
