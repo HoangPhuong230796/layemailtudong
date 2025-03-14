@@ -104,90 +104,88 @@ console.log("response:", response);
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-        async function getUserEmail() {
-            try {
-                const response = await msalInstance.handleRedirectPromise();
-                let account = msalInstance.getAllAccounts()[0];
+let userEmail = ""; // Biến toàn cục để lưu email
 
-                if (!account) {
-                    await msalInstance.loginRedirect({ scopes: ["User.Read"] });
-                    return;
-                }
+async function getUserEmail() {
+    try {
+        const response = await msalInstance.handleRedirectPromise();
+        let account = msalInstance.getAllAccounts()[0];
 
-                const tokenResponse = await msalInstance.acquireTokenSilent({
-                    scopes: ["User.Read"],
-                    account: account
-                });
-
-                const accessToken = tokenResponse.accessToken;
-
-                const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-                    headers: { "Authorization": `Bearer ${accessToken}` }
-                });
-
-                const userData = await userResponse.json();
-                const userEmail = userData.mail || userData.userPrincipalName;
-                console.log("User email retrieved:", userEmail); // Thêm dòng này để kiểm tra email nhận được
-
-                // Kiểm tra quyền truy cập
-                if (!ALLOWED_EMAILS.includes(userEmail.trim().toLowerCase())) {
-                    document.querySelector("h2").innerText = "Truy cập bị từ chối!";
-                    document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
-                    document.querySelector(".loader").style.display = "none";
-                    document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
-                    return;
-                }
-                 document.querySelector(".loader").style.display = "none";
-            if (response === "Thống nhất") {
-                // Nếu email hợp lệ
-                document.querySelector("h2").innerText = "Thành công!";
-                document.querySelector(".loading").innerText = `Email: ${userEmail}`;
-                document.querySelector(".loader").style.display = "none";
-                document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
-
-                sendToFlow2(userEmail,"Thống nhất", "");
-            } else if (response === "Không thống nhất") {
-                    document.getElementById("rejectBtn").classList.add("hidden");
-                    document.getElementById("reasonSection").classList.remove("hidden");
-                    document.querySelector("h2").innerText = "Vui lòng nhập lý do";
-                    document.querySelector(".loading").innerText = "";
-                    document.getElementById("status").innerHTML = `<p class="error">Bạn đã chọn không thống nhất. Hãy nhập lý do bên dưới.</p>`;
-            }
-            } catch (error) {
-                document.querySelector("h2").innerText = "Lỗi!";
-                document.querySelector(".loading").innerText = "";
-                document.querySelector(".loader").style.display = "none";
-                document.getElementById("status").innerHTML = `<p class="error">Không thể lấy email. Vui lòng thử lại.</p>`;
-                console.error("Lỗi lấy email:", error);
-            }
+        if (!account) {
+            await msalInstance.loginRedirect({ scopes: ["User.Read"] });
+            return;
         }
 
-        function showReasonBox() {
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+            scopes: ["User.Read"],
+            account: account
+        });
+
+        const accessToken = tokenResponse.accessToken;
+
+        const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+            headers: { "Authorization": `Bearer ${accessToken}` }
+        });
+
+        const userData = await userResponse.json();
+        userEmail = userData.mail || userData.userPrincipalName; // Lưu email để sử dụng lại
+
+        console.log("User email retrieved:", userEmail);
+
+        if (!ALLOWED_EMAILS.includes(userEmail.trim().toLowerCase())) {
+            document.querySelector("h2").innerText = "Truy cập bị từ chối!";
+            document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
+            document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
+            return;
+        }
+
+        document.querySelector(".loader").style.display = "none";
+
+        if (response === "Thống nhất") {
+            document.querySelector("h2").innerText = "Thành công!";
+            document.querySelector(".loading").innerText = `Email: ${userEmail}`;
+            document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
+
+            sendToFlow2(userEmail, "Thống nhất", "");
+        } else if (response === "Không thống nhất") {
+            document.getElementById("rejectBtn").classList.add("hidden");
             document.getElementById("reasonSection").classList.remove("hidden");
         }
+    } catch (error) {
+        console.error("Lỗi lấy email:", error);
+    }
+}
 
-        function submitReason() {
-            let reason = document.getElementById("reasonInput").value.trim();
-            let userEmail = ""; // Khai báo biến toàn cục để lưu email
-            if (reason === "") {
-                alert("Vui lòng nhập lý do!");
-                return;
-            }
-            sendToFlow2(userEmail, "Không thống nhất", reason);
-        }
+function submitReason() {
+    let reason = document.getElementById("reasonInput").value.trim();
+    if (!reason) {
+        alert("Vui lòng nhập lý do!");
+        return;
+    }
+    sendToFlow2(userEmail, "Không thống nhất", reason);
+}
 
-        function sendToFlow2(email,responseType, reason) {
-            fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email,response:responseType,id_file:id_file,reason: reason})
-            })
-            .then(res => res.text())
-            .then(data => console.log("Response from Flow 2:", data))
-            .catch(error => console.error("Lỗi gửi dữ liệu:", error));
-        }
+function sendToFlow2(email, responseType, reason) {
+    if (!id_file) {
+        console.error("Lỗi: ID File không hợp lệ!");
+        return;
+    }
 
-        getUserEmail();
+    let dataToSend = { email, response: responseType, id_file, reason };
+    console.log("Dữ liệu gửi đến Flow 2:", dataToSend);
+
+    fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(dataToSend)
+    })
+    .then(res => res.text())
+    .then(data => console.log("Response from Flow 2:", data))
+    .catch(error => console.error("Lỗi gửi dữ liệu:", error));
+}
+
+getUserEmail();
+
     </script>
 
 </body>
