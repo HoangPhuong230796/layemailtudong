@@ -53,6 +53,9 @@
             color: green;
             font-weight: bold;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -62,6 +65,7 @@
         <div class="loader"></div>
         <p class="loading">Vui lòng đợi trong giây lát...</p>
         <p id="status"></p>
+        
         <!-- Khu vực nhập lý do -->
         <div id="reasonSection" class="hidden">
             <textarea id="reasonInput" placeholder="Nhập lý do không thống nhất..."></textarea>
@@ -84,6 +88,7 @@
 
 console.log("id_file:", id_file);
 console.log("response:", response);
+        
         const ALLOWED_EMAILS = [
         "phuonghv@phumytpc.genco3.vn",
         "camnc@phumytpc.genco3.vn",
@@ -132,14 +137,21 @@ console.log("response:", response);
                     document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
                     return;
                 }
-
+                 document.querySelector(".loader").style.display = "none";
+            if (response === "Thống nhất") {
                 // Nếu email hợp lệ
                 document.querySelector("h2").innerText = "Thành công!";
                 document.querySelector(".loading").innerText = `Email: ${userEmail}`;
                 document.querySelector(".loader").style.display = "none";
                 document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
 
-                sendToFlow2(userEmail);
+                sendToFlow2(userEmail,"Thống nhất", "");
+            } else if (response === "reject") {
+                    document.querySelector("h2").innerText = "Vui lòng nhập lý do";
+                    document.querySelector(".loading").innerText = "";
+                    document.getElementById("status").innerHTML = `<p class="error">Bạn đã chọn không thống nhất. Hãy nhập lý do bên dưới.</p>`;
+                    document.getElementById("reasonSection").classList.remove("hidden");
+            }
             } catch (error) {
                 document.querySelector("h2").innerText = "Lỗi!";
                 document.querySelector(".loading").innerText = "";
@@ -159,14 +171,14 @@ console.log("response:", response);
                 alert("Vui lòng nhập lý do!");
                 return;
             }
-            sendToFlow2(userEmail, "reject", reason);
+            sendToFlow2(userEmail, "Không thống nhất", reason);
         }
 
-        function sendToFlow2(email) {
+        function sendToFlow2(email,responseType, reason) {
             fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email: email,response:response,id_file:id_file,reason: reason})
+                body: JSON.stringify({ email: email,response:responseType,id_file:id_file,reason: reason})
             })
             .then(res => res.text())
             .then(data => console.log("Response from Flow 2:", data))
