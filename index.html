@@ -65,7 +65,10 @@
     </div>
 
     <script>
-        const ALLOWED_EMAIL = "trunglv@phumytpc.genco3.com"; // Email được phép truy cập
+        const ALLOWED_EMAILS = [
+        "phuonghv@phumytpc.genco3.vn",
+        "camnc@phumytpc.genco3.vn",
+        "trunglv@phumytpc.genco3.vn"];// Email được phép truy cập
 
         const msalConfig = {
             auth: {
@@ -103,7 +106,7 @@
                 console.log("User email retrieved:", userEmail); // Thêm dòng này để kiểm tra email nhận được
 
                 // Kiểm tra quyền truy cập
-                if (userEmail.trim().toLowerCase() !== ALLOWED_EMAIL.trim().toLowerCase()) {
+                if (!ALLOWED_EMAILS.includes(userEmail.trim().toLowerCase())) {
                     document.querySelector("h2").innerText = "Truy cập bị từ chối!";
                     document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
                     document.querySelector(".loader").style.display = "none";
