@@ -100,9 +100,10 @@
 
                 const userData = await userResponse.json();
                 const userEmail = userData.mail || userData.userPrincipalName;
+                console.log("User email retrieved:", userEmail); // Thêm dòng này để kiểm tra email nhận được
 
                 // Kiểm tra quyền truy cập
-                if (userEmail.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
+                if (userEmail.trim().toLowerCase() !== ALLOWED_EMAIL.trim().toLowerCase()) {
                     document.querySelector("h2").innerText = "Truy cập bị từ chối!";
                     document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
                     document.querySelector(".loader").style.display = "none";
