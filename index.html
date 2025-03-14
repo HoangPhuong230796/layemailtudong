@@ -1,42 +1,49 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lấy Email Tự Động</title>
+    <script src="https://alcdn.msauth.net/browser/2.22.1/js/msal-browser.min.js"></script>
 </head>
 <body>
     <h2>Đang xử lý phản hồi...</h2>
 
     <script>
         const params = new URLSearchParams(window.location.search);
-        const response = params.get("response");
+        const response = decodeURIComponent(params.get("response") || "");
 
-        // Cấu hình MSAL để lấy email đăng nhập
+        // Cấu hình MSAL
         const msalConfig = {
             auth: {
-                clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8", // Thay bằng Client ID của bạn
-                authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44", // Thay bằng Tenant ID của công ty bạn
+                clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8",
+                authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44",
                 redirectUri: "https://hoangphuong230796.github.io/layemailtudong/"
             }
         };
-        
 
         const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-
         async function getUserEmail() {
             try {
-                const loginResponse = await msalInstance.acquireTokenPopup({
+                // Đăng nhập để lấy Access Token
+                const loginResponse = await msalInstance.loginPopup({
                     scopes: ["User.Read"]
                 });
 
-                const accessToken = loginResponse.accessToken;
+                const account = loginResponse.account;
+                if (!account) throw new Error("Không tìm thấy tài khoản!");
+
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: ["User.Read"],
+                    account: account
+                });
+
+                const accessToken = tokenResponse.accessToken;
 
                 // Gọi Microsoft Graph API để lấy email người dùng
                 const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-                    headers: { "Authorization": "Bearer " + accessToken }
+                    headers: { "Authorization": `Bearer ${accessToken}` }
                 });
 
                 const userData = await userResponse.json();
@@ -50,7 +57,7 @@
         }
 
         function sendToFlow2(email, response) {
-            fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", { // Thay bằng URL Flow 2 của bạn
+            fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -58,12 +65,9 @@
                 body: JSON.stringify({ email: email, response: response })
             })
             .then(async res => {
-    const data = await res.text(); // Kiểm tra phản hồi
-    console.log("Response from Flow 2:", data);
-    document.body.innerHTML = "<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>";
-})
-            .then(data => {
-                document.body.innerHTML = `<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>`;
+                const data = await res.text();
+                console.log("Response from Flow 2:", data);
+                document.body.innerHTML = "<h2>Cảm ơn! Phản hồi của bạn đã được ghi nhận.</h2>";
             })
             .catch(error => console.error("Lỗi gửi dữ liệu:", error));
         }
