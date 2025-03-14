@@ -134,7 +134,8 @@ async function getUserEmail() {
             document.querySelector("h2").innerText = "Truy cập bị từ chối!";
             document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
             document.querySelector(".loader").style.display = "none";
-            document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
+            document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập.</p>
+                                                        <p class="error">Vui lòng liên hệ Hoàng Văn Phương - phuongv@phymytpc.genco3.vn</p>`;
             return;
         }
 
