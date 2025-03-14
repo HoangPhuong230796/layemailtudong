@@ -175,15 +175,18 @@ function sendToFlow2(email, responseType, reason) {
     }
 
     let dataToSend = { email, response: responseType, id_file, reason };
-    console.log("Dữ liệu gửi đến Flow 2:", dataToSend);
+console.log("Dữ liệu gửi đi:", JSON.stringify(dataToSend, null, 2));
 
     fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(dataToSend)
     })
-    .then(res => res.text())
-    .then(data => console.log("Response from Flow 2:", data))
+    .then(res => {
+    console.log("Trạng thái API:", res.status, res.statusText);
+    return res.json();
+    })
+    .then(data => console.log("Phản hồi từ Flow 2:", data))
     .catch(error => console.error("Lỗi gửi dữ liệu:", error));
 }
 
