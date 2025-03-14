@@ -146,11 +146,12 @@ console.log("response:", response);
                 document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
 
                 sendToFlow2(userEmail,"Thống nhất", "");
-            } else if (response === "reject") {
+            } else if (response === "Không thống nhất") {
+                    document.getElementById("rejectBtn").classList.add("hidden");
+                    document.getElementById("reasonSection").classList.remove("hidden");
                     document.querySelector("h2").innerText = "Vui lòng nhập lý do";
                     document.querySelector(".loading").innerText = "";
                     document.getElementById("status").innerHTML = `<p class="error">Bạn đã chọn không thống nhất. Hãy nhập lý do bên dưới.</p>`;
-                    document.getElementById("reasonSection").classList.remove("hidden");
             }
             } catch (error) {
                 document.querySelector("h2").innerText = "Lỗi!";
@@ -167,6 +168,7 @@ console.log("response:", response);
 
         function submitReason() {
             let reason = document.getElementById("reasonInput").value.trim();
+            let userEmail = ""; // Khai báo biến toàn cục để lưu email
             if (reason === "") {
                 alert("Vui lòng nhập lý do!");
                 return;
