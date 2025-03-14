@@ -134,6 +134,7 @@ async function getUserEmail() {
 
         if (!ALLOWED_EMAILS.includes(userEmail.trim().toLowerCase())) {
             document.querySelector("h2").innerText = "Truy cập bị từ chối!";
+document.querySelector(".loader").style.display = "none";
             document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
             document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập. Vui lòng liên hệ Admin.</p>`;
             return;
@@ -143,11 +144,13 @@ async function getUserEmail() {
 
         if (response === "Thống nhất") {
             document.querySelector("h2").innerText = "Thành công!";
+document.querySelector(".loader").style.display = "none";
             document.querySelector(".loading").innerText = `Email: ${userEmail}`;
             document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
 
             sendToFlow2(userEmail, "Thống nhất", "");
         } else if (response === "Không thống nhất") {
+document.querySelector(".loader").style.display = "none";
             document.getElementById("rejectBtn").classList.add("hidden");
             document.getElementById("reasonSection").classList.remove("hidden");
         }
