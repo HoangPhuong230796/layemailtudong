@@ -155,7 +155,7 @@ async function getUserEmail() {
 }
 
 function sendToFlow2(email, id_file, responseValue) {
-    fetch("https://prod-59.southeastasia.logic.azure.com:443/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=K4m0Tvxji9EFHLWLjy_pP6HcNRem9_YdLP73JZEshz0", {
+    fetch("https://defaultf2c948a0a9c94e40bf86bf3a03590b.44.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=h0dVctrzsKbmRhA1ShWTBcUx9v3MQtFLu0--FpaB9y0", {
         method: "POST", // ✅ Sử dụng POST
         headers: {
             "Content-Type": "application/json"
@@ -177,6 +177,7 @@ getUserEmail();
 
 </body>
 </html>
+
 
 
 
