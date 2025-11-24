@@ -56,6 +56,31 @@
         .hidden {
             display: none;
         }
+        textarea {
+            width: 100%;
+            min-height: 80px;
+            margin-top: 10px;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .submit-btn, .reject-btn {
+            margin-top: 10px;
+            padding: 8px 16px;
+            border-radius: 5px;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .submit-btn {
+            background: #3498db;
+            color: #fff;
+        }
+        .reject-btn {
+            background: #e74c3c;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -70,116 +95,178 @@
         <div id="reasonSection" class="hidden">
             <textarea id="reasonInput" placeholder="Nhập lý do không thống nhất..."></textarea>
             <button class="submit-btn" onclick="submitReason()">Gửi</button>
-    </div>
-         <!-- Nút Không thống nhất -->
+        </div>
+
+        <!-- Nút Không thống nhất (sau này nếu bạn muốn dùng) -->
         <button id="rejectBtn" class="reject-btn hidden" onclick="showReasonBox()">Không thống nhất</button>
     </div>
 
     <script>
-// Hàm lấy giá trị từ URL (query string)
-function getQueryParam(param) {
-    const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get(param);
-}
+        // Hàm lấy giá trị từ URL (query string)
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
 
-// Lấy id_file và response từ URL
-const id_file = getQueryParam("id_file");
-const responseValue = getQueryParam("response");
+        // ==== GIỮ LẠI id_file & response QUA REDIRECT (CHỈ CẦN BẤM 1 LẦN) ====
 
-const ALLOWED_EMAILS = [
-    "gianght@phumytpc.genco3.vn",
+        // Lấy từ URL hoặc từ sessionStorage (trường hợp quay lại sau khi loginRedirect)
+        let id_file = getQueryParam("id_file") || sessionStorage.getItem("id_file");
+        let responseValue = getQueryParam("response") || sessionStorage.getItem("response");
+
+        // Nếu URL hiện tại có tham số thì lưu lại vào sessionStorage
+        const idFromUrl = getQueryParam("id_file");
+        const responseFromUrl = getQueryParam("response");
+
+        if (idFromUrl) {
+            sessionStorage.setItem("id_file", idFromUrl);
+            id_file = idFromUrl;
+        }
+        if (responseFromUrl) {
+            sessionStorage.setItem("response", responseFromUrl);
+            responseValue = responseFromUrl;
+        }
+
+        console.log("id_file (final):", id_file);
+        console.log("response (final):", responseValue);
+
+        const ALLOWED_EMAILS = [
+            "trunglv@phumytpc.genco3.vn",
             "camnc@phumytpc.genco3.vn"
-        ];
+        ].map(e => e.toLowerCase());
 
-console.log("id_file:", id_file);
-console.log("response:", responseValue);
-const msalConfig = {
-    auth: {
-        clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8",
-        authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44",
-        redirectUri: "https://hoangphuong230796.github.io/layemailtudong/"
-    }
-};
+        const msalConfig = {
+            auth: {
+                clientId: "836c9365-9ad7-454a-beb8-0970f8a6f2e8",
+                authority: "https://login.microsoftonline.com/f2c948a0-a9c9-4e40-bf86-bf3a03590b44",
+                redirectUri: "https://hoangphuong230796.github.io/layemailtudong/"
+            }
+        };
 
-const msalInstance = new msal.PublicClientApplication(msalConfig);
+        const msalInstance = new msal.PublicClientApplication(msalConfig);
 
-async function getUserEmail() {
-    try {
-        const response = await msalInstance.handleRedirectPromise();
-        let account = msalInstance.getAllAccounts()[0];
+        async function getUserEmail() {
+            try {
+                const redirectResult = await msalInstance.handleRedirectPromise();
+                let account = null;
 
-        if (!account) {
-            await msalInstance.loginRedirect({ scopes: ["User.Read"] });
-            return;
+                if (redirectResult && redirectResult.account) {
+                    account = redirectResult.account;
+                } else {
+                    const accounts = msalInstance.getAllAccounts();
+                    if (accounts.length > 0) {
+                        account = accounts[0];
+                    }
+                }
+
+                // Nếu chưa có account → chuyển sang loginRedirect
+                if (!account) {
+                    await msalInstance.loginRedirect({ scopes: ["User.Read"] });
+                    return;
+                }
+
+                const tokenResponse = await msalInstance.acquireTokenSilent({
+                    scopes: ["User.Read"],
+                    account: account
+                });
+
+                const accessToken = tokenResponse.accessToken;
+
+                const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
+                    headers: { "Authorization": `Bearer ${accessToken}` }
+                });
+
+                const userData = await userResponse.json();
+                const userEmail = (userData.mail || userData.userPrincipalName || "").trim();
+                const normalizedEmail = userEmail.toLowerCase();
+
+                console.log("User email retrieved:", userEmail);
+
+                // Kiểm tra quyền truy cập
+                if (!ALLOWED_EMAILS.includes(normalizedEmail)) {
+                    document.querySelector("h2").innerText = "Truy cập bị từ chối!";
+                    document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
+                    document.querySelector(".loader").style.display = "none";
+                    document.getElementById("status").innerHTML =
+                        `<p class="error">Bạn không có quyền truy cập.</p>
+                         <p class="error">Vui lòng liên hệ Hoàng Văn Phương - phuongv@phumytpc.genco3.vn</p>`;
+                    return;
+                }
+
+                // Nếu email hợp lệ
+                document.querySelector("h2").innerText = "Thành công!";
+                document.querySelector(".loading").innerText = `Email: ${userEmail}`;
+                document.querySelector(".loader").style.display = "none";
+
+                // Kiểm tra lại id_file & response trước khi gửi Flow
+                if (!id_file || !responseValue) {
+                    document.getElementById("status").innerHTML =
+                        `<p class="error">Thiếu thông tin id_file hoặc response. Vui lòng mở lại email và bấm nút Duyệt.</p>`;
+                    console.error("Missing id_file or responseValue:", { id_file, responseValue });
+                    return;
+                }
+
+                document.getElementById("status").innerHTML =
+                    `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
+
+                // Gửi về Power Automate
+                sendToFlow2(userEmail, id_file, responseValue);
+
+            } catch (error) {
+                document.querySelector("h2").innerText = "Lỗi!";
+                document.querySelector(".loading").innerText = "";
+                document.querySelector(".loader").style.display = "none";
+                document.getElementById("status").innerHTML =
+                    `<p class="error">Không thể lấy email. Vui lòng thử lại.</p>`;
+                console.error("Lỗi lấy email:", error);
+            }
         }
 
-        const tokenResponse = await msalInstance.acquireTokenSilent({
-            scopes: ["User.Read"],
-            account: account
-        });
+        function sendToFlow2(email, id_file, responseValue) {
+            console.log("Sending to Flow:", { email, id_file, responseValue });
 
-        const accessToken = tokenResponse.accessToken;
+            fetch("https://defaultf2c948a0a9c94e40bf86bf3a03590b.44.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=h0dVctrzsKbmRhA1ShWTBcUx9v3MQtFLu0--FpaB9y0", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    email: email,
+                    id_file: id_file.toString(),
+                    response: responseValue
+                })
+            })
+            .then(response => response.json().catch(() => null))
+            .then(data => {
+                console.log("Response from Flow:", data);
 
-        const userResponse = await fetch("https://graph.microsoft.com/v1.0/me", {
-            headers: { "Authorization": `Bearer ${accessToken}` }
-        });
-
-        const userData = await userResponse.json();
-        const userEmail = userData.mail || userData.userPrincipalName;
-        console.log("User email retrieved:", userEmail);
-
-        // Kiểm tra quyền truy cập
-        if (!ALLOWED_EMAILS.includes(userEmail.trim().toLowerCase())) {
-            document.querySelector("h2").innerText = "Truy cập bị từ chối!";
-            document.querySelector(".loading").innerText = `Email của bạn: ${userEmail}`;
-            document.querySelector(".loader").style.display = "none";
-            document.getElementById("status").innerHTML = `<p class="error">Bạn không có quyền truy cập.</p>
-                                                        <p class="error">Vui lòng liên hệ Hoàng Văn Phương - phuongv@phymytpc.genco3.vn</p>`;
-            return;
+                // Sau khi gửi xong có thể xóa sessionStorage để tránh dính id_file cũ
+                sessionStorage.removeItem("id_file");
+                sessionStorage.removeItem("response");
+            })
+            .catch(error => {
+                console.error("Error gửi Flow:", error);
+            });
         }
 
-        // Nếu email hợp lệ
-        document.querySelector("h2").innerText = "Thành công!";
-        document.querySelector(".loading").innerText = `Email: ${userEmail}`;
-        document.querySelector(".loader").style.display = "none";
-        document.getElementById("status").innerHTML = `<p class="success">Cảm ơn! Phản hồi của bạn đã được ghi nhận.</p>`;
+        // Placeholder cho 2 hàm này (nếu sau này bạn dùng nút "Không thống nhất")
+        function showReasonBox() {
+            document.getElementById("reasonSection").classList.remove("hidden");
+        }
 
-        sendToFlow2(userEmail, id_file, responseValue);
-    } catch (error) {
-        document.querySelector("h2").innerText = "Lỗi!";
-        document.querySelector(".loading").innerText = "";
-        document.querySelector(".loader").style.display = "none";
-        document.getElementById("status").innerHTML = `<p class="error">Không thể lấy email. Vui lòng thử lại.</p>`;
-        console.error("Lỗi lấy email:", error);
-    }
-}
+        function submitReason() {
+            const reason = document.getElementById("reasonInput").value.trim();
+            if (!reason) {
+                alert("Vui lòng nhập lý do.");
+                return;
+            }
+            // Tùy bạn xử lý: gửi reason kèm theo responseValue = "reject", v.v.
+            alert("Đã gửi lý do: " + reason);
+        }
 
-function sendToFlow2(email, id_file, responseValue) {
-    fetch("https://defaultf2c948a0a9c94e40bf86bf3a03590b.44.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/7639bfd4cf064ce39218172007eff233/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=h0dVctrzsKbmRhA1ShWTBcUx9v3MQtFLu0--FpaB9y0", {
-        method: "POST", // ✅ Sử dụng POST
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            email: email,
-            id_file: id_file.toString(), // Đảm bảo gửi dưới dạng chuỗi
-            response: responseValue
-        })
-    })
-    .then(response => response.json())
-    .then(data => console.log("Response from Flow:", data))
-    .catch(error => console.error("Error:", error));
-}
-
-getUserEmail();
-
+        // Gọi hàm chính
+        getUserEmail();
     </script>
 
 </body>
 </html>
-
-
-
-
-
-
